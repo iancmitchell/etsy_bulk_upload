@@ -6,6 +6,7 @@ This package allows a user to upload multiple Etsy listings at once by entering 
 1. github.com/dghubble/oauth1
 </br>
 Install required packages by running: 
+</br>
 ```
-go get [package]
+go get package
 ```
