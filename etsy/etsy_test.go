@@ -12,7 +12,7 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestAuthentizate(t *testing.T) {
+func TestAuthenticate(t *testing.T) {
 	client := NewClient()
 	client.Authenticate()
 }

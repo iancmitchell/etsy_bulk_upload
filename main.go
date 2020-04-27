@@ -1,8 +1,12 @@
 package main
 
-import "etsy"
+import (
+	"etsy"
+	"log"
+)
 
 func main() {
 	client := etsy.NewClient()
-	client.AddListings()
+	res := client.AddListings()
+	log.Println(res)
 }
