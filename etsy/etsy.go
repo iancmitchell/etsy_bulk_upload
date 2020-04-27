@@ -1,6 +1,7 @@
 package etsy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -31,20 +32,23 @@ type Client struct {
 
 //Parameters to pass to Etsy api
 type Parameters struct {
-	Quantity int64
+	Quantity    int64
+	Title       string
+	Description string
+	Price       float64
 }
 
 //NewClient creates a new Etsy client to make request to the etsy api
 func NewClient() Client {
 	client := Client{
-		BaseURL: "https://openapi.etsy.com/v2/listings/active",
+		BaseURL: "https://openapi.etsy.com/v2",
 		Client:  Authenticate(),
 	}
 	return client
 }
 
+//checkCredentials reads credentials from environment variables
 func checkCredentials() (bool, *http.Client) {
-	// read credentials from environment variables
 	authInput, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		log.Println("Error Reading Credentials File: ", err)
@@ -115,6 +119,7 @@ func Authenticate() *http.Client {
 	return authConfig.Client(oauth1.NoContext, token)
 }
 
+//readConfig reads config.json file to obtain oauth api key and api secret.
 func readConfig() config {
 	file, err := ioutil.ReadFile("config.json")
 	if err != nil {
@@ -129,6 +134,7 @@ func readConfig() config {
 	return configData
 }
 
+//saveAuthInfo saves oauth credentils to credentials.json
 func saveAuthInfo(consumerKey string, consumerSecret string, accessToken string, accessSecret string) {
 	authOutput := accessDetails{
 		ConsumerKey:    consumerKey,
@@ -140,8 +146,9 @@ func saveAuthInfo(consumerKey string, consumerSecret string, accessToken string,
 	_ = ioutil.WriteFile("credentials.json", file, 0644)
 }
 
-func (c Client) makeRequest(endpoint string, params Parameters) {
-	res, err := c.Client.Get("https://openapi.etsy.com/v2/listings/active")
+func (c Client) makePostRequest(url string) {
+	log.Println(url)
+	res, err := c.Client.Post(url, "application/json", bytes.NewBufferString("{}"))
 	if err != nil {
 		log.Fatalln("Error Making Request: ", err)
 	}
@@ -150,14 +157,50 @@ func (c Client) makeRequest(endpoint string, params Parameters) {
 	if err != nil {
 		log.Fatalln("Error Reading Body: ", err)
 	}
-	log.Println(string(body))
+	log.Println("Body: ", string(body))
+}
+
+func (c Client) makeGetRequest(endpoint string) []byte {
+	url := fmt.Sprintf("%s/%s", c.BaseURL, endpoint)
+	res, err := c.Client.Get(url)
+	if err != nil {
+		log.Println("Error Getting Active Listings: ", err)
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalln("Error Reading Body: ", err)
+	}
+	log.Println("Body: ", string(body))
+	return body
+}
+
+//GetActiveListings returns the active listings for an Etsy account.
+func (c Client) GetActiveListings() {
+	c.makeGetRequest("listings/active")
+}
+
+//GetShop gets a shop id given a shope name
+func (c Client) GetShop(shopName string) {
+	endpoint := fmt.Sprintf("shops?shop_name=%s", shopName)
+	c.makeGetRequest(endpoint)
 }
 
 //AddListings creates multiple listings on an Etsy account.
 func (c Client) AddListings() bool {
 	params := Parameters{
-		Quantity: 1,
+		Quantity:    1,
+		Title:       "Testing Title",
+		Description: "Testing Description",
+		Price:       20.00,
 	}
-	c.makeRequest("", params)
+	url := fmt.Sprintf(
+		"%s/%s?quantity=%d&title=%s",
+		c.BaseURL,
+		"listings",
+		params.Quantity,
+		params.Title,
+	)
+	c.makePostRequest(url)
 	return true
 }
