@@ -7,5 +7,5 @@ This package allows a user to upload multiple Etsy listings at once by entering 
 </br>
 Install required packages by running: 
 ```
-go get "package"
+go get [package]
 ```
