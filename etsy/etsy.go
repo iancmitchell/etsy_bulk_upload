@@ -23,19 +23,32 @@ type accessDetails struct {
 	AccessSecret   string `json:"AccessSecret"`
 }
 
-//Client type for Etsy API calls
+//Client type for Etsy API calls.
 type Client struct {
 	Config  config
 	BaseURL string
 	Client  *http.Client
 }
 
-//Parameters to pass to Etsy api
+//Parameters to pass to Etsy api.
 type Parameters struct {
 	Quantity    int64
 	Title       string
 	Description string
 	Price       float64
+}
+
+//Taxonomy is a category from the Etsy api.
+type Taxonomy struct {
+	ID       int64      `json:"id"`
+	Name     string     `json:"name"`
+	Children []Taxonomy `json"children"`
+}
+
+//TaxonomyList is a list of taxonomies.
+type TaxonomyList struct {
+	Count   int64      `json:"count"`
+	Results []Taxonomy `json:"results"`
 }
 
 //NewClient creates a new Etsy client to make request to the etsy api
@@ -157,7 +170,7 @@ func (c Client) makePostRequest(url string) {
 	if err != nil {
 		log.Fatalln("Error Reading Body: ", err)
 	}
-	log.Println("Body: ", string(body))
+	log.Print("Body: ", string(body)[:5])
 }
 
 func (c Client) makeGetRequest(endpoint string) []byte {
@@ -171,7 +184,7 @@ func (c Client) makeGetRequest(endpoint string) []byte {
 	if err != nil {
 		log.Fatalln("Error Reading Body: ", err)
 	}
-	log.Println("Body: ", string(body))
+	log.Println("Body: ", string(body)[0:500])
 	return body
 }
 
@@ -184,6 +197,35 @@ func (c Client) GetActiveListings() {
 func (c Client) GetShop(shopName string) {
 	endpoint := fmt.Sprintf("shops?shop_name=%s", shopName)
 	c.makeGetRequest(endpoint)
+}
+
+//filterTaxonomies searches through list of taxonomies of any depth to find id of matching name.
+func (c Client) filterTaxonomies(name string, taxonomies []Taxonomy) (int64, bool) {
+	for _, v := range taxonomies {
+		if v.Name == name {
+			return v.ID, true
+		}
+		if len(v.Children) > 0 {
+			recursiveResult, success := c.filterTaxonomies(name, v.Children)
+			if success {
+				return recursiveResult, true
+			}
+		}
+	}
+	return 0, false
+}
+
+//GetTaxonomy gets the taxonomy as used by sellers in the listing process.
+func (c Client) GetTaxonomy(name string) int64 {
+	endpoint := "taxonomy/seller/get"
+	taxonomyList := TaxonomyList{}
+	response := c.makeGetRequest(endpoint)
+	json.Unmarshal(response, &taxonomyList)
+	filteredTaxonomy, success := c.filterTaxonomies(name, taxonomyList.Results)
+	if !success {
+		log.Fatalf("Taxonomy %s Not Found", name)
+	}
+	return filteredTaxonomy
 }
 
 //AddListings creates multiple listings on an Etsy account.
