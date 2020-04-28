@@ -6,5 +6,6 @@ import (
 
 func main() {
 	client := etsy.NewClient()
-	client.GetTaxonomy("Wall Hangings")
+	client.AddListings()
+	client.FindUser("k8mkmpig")
 }

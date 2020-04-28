@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/dghubble/oauth1"
 )
@@ -32,23 +33,51 @@ type Client struct {
 
 //Parameters to pass to Etsy api.
 type Parameters struct {
-	Quantity    int64
-	Title       string
-	Description string
-	Price       float64
+	Quantity             int
+	Title                string
+	Description          string
+	Price                float64
+	TaxonomyName         string
+	WhoMade              string
+	IsSupply             bool
+	WhenMade             string
+	UserName             string
+	ShippingTemplateName string
 }
 
 //Taxonomy is a category from the Etsy api.
 type Taxonomy struct {
-	ID       int64      `json:"id"`
+	ID       int        `json:"id"`
 	Name     string     `json:"name"`
 	Children []Taxonomy `json"children"`
 }
 
 //TaxonomyList is a list of taxonomies.
 type TaxonomyList struct {
-	Count   int64      `json:"count"`
+	Count   int        `json:"count"`
 	Results []Taxonomy `json:"results"`
+}
+
+//User represents a user in the Etsy api.
+type User struct {
+	ID        int    `json:"user_id"`
+	LoginName string `json:"login_name"`
+}
+
+//UserList represents a list of users from the Etsy api.
+type UserList struct {
+	Users []User `json:"results"`
+}
+
+//ShippingTemplate represents a shipping template from the Etsy api.
+type ShippingTemplate struct {
+	ID   int    `json:"shipping_template_id"`
+	Name string `json:"title"`
+}
+
+//ShippingTemplateList represents a list of shipping templates from the Etsy api.
+type ShippingTemplateList struct {
+	Templates []ShippingTemplate `json:"results"`
 }
 
 //NewClient creates a new Etsy client to make request to the etsy api
@@ -90,7 +119,7 @@ func Authenticate() *http.Client {
 	configFile := readConfig()
 
 	endpoint := oauth1.Endpoint{
-		RequestTokenURL: "https://openapi.etsy.com/v2/oauth/request_token?scope=listings_w",
+		RequestTokenURL: "https://openapi.etsy.com/v2/oauth/request_token?scope=listings_w%20listings_r",
 		AuthorizeURL:    "https://www.etsy.com/oauth/signin",
 		AccessTokenURL:  "https://openapi.etsy.com/v2/oauth/access_token",
 	}
@@ -170,7 +199,7 @@ func (c Client) makePostRequest(url string) {
 	if err != nil {
 		log.Fatalln("Error Reading Body: ", err)
 	}
-	log.Print("Body: ", string(body)[:5])
+	log.Print("Body: ", string(body))
 }
 
 func (c Client) makeGetRequest(endpoint string) []byte {
@@ -184,7 +213,7 @@ func (c Client) makeGetRequest(endpoint string) []byte {
 	if err != nil {
 		log.Fatalln("Error Reading Body: ", err)
 	}
-	log.Println("Body: ", string(body)[0:500])
+	//log.Println("Body: ", string(body))
 	return body
 }
 
@@ -200,7 +229,7 @@ func (c Client) GetShop(shopName string) {
 }
 
 //filterTaxonomies searches through list of taxonomies of any depth to find id of matching name.
-func (c Client) filterTaxonomies(name string, taxonomies []Taxonomy) (int64, bool) {
+func (c Client) filterTaxonomies(name string, taxonomies []Taxonomy) (int, bool) {
 	for _, v := range taxonomies {
 		if v.Name == name {
 			return v.ID, true
@@ -215,8 +244,8 @@ func (c Client) filterTaxonomies(name string, taxonomies []Taxonomy) (int64, boo
 	return 0, false
 }
 
-//GetTaxonomy gets the taxonomy as used by sellers in the listing process.
-func (c Client) GetTaxonomy(name string) int64 {
+//FindTaxonomy gets the taxonomy as used by sellers in the listing process.
+func (c Client) FindTaxonomy(name string) int {
 	endpoint := "taxonomy/seller/get"
 	taxonomyList := TaxonomyList{}
 	response := c.makeGetRequest(endpoint)
@@ -228,21 +257,61 @@ func (c Client) GetTaxonomy(name string) int64 {
 	return filteredTaxonomy
 }
 
+//FindUser searches for a user by username and returns their id.
+func (c Client) FindUser(username string) int {
+	endpoint := fmt.Sprintf("users?keywords=%s", username)
+	response := c.makeGetRequest(endpoint)
+	userList := UserList{}
+	json.Unmarshal(response, &userList)
+	return userList.Users[0].ID
+}
+
+//FindUserShippingTemplate will search the Etsy api for a user's shipping template by name.
+func (c Client) FindUserShippingTemplate(userID int, templateName string) int {
+	endpoint := fmt.Sprintf("users/%d/shipping/templates", userID)
+	response := c.makeGetRequest(endpoint)
+	templates := ShippingTemplateList{}
+	json.Unmarshal(response, &templates)
+
+	for _, template := range templates.Templates {
+		if template.Name == templateName {
+			return template.ID
+		}
+	}
+	log.Fatalf("No Template With Name: %s Within User %d Found", templateName, userID)
+	return 0
+}
+
 //AddListings creates multiple listings on an Etsy account.
 func (c Client) AddListings() bool {
 	params := Parameters{
-		Quantity:    1,
-		Title:       "Testing Title",
-		Description: "Testing Description",
-		Price:       20.00,
+		Quantity:             1,
+		Title:                "Testing Title 2",
+		Description:          "Testing Description",
+		Price:                20.00,
+		TaxonomyName:         "Wall Hangings",
+		WhoMade:              "i_did",
+		IsSupply:             true,
+		WhenMade:             "2020_2020",
+		UserName:             "k8mkmpig",
+		ShippingTemplateName: "test profile",
 	}
-	url := fmt.Sprintf(
-		"%s/%s?quantity=%d&title=%s",
-		c.BaseURL,
-		"listings",
+	taxonomyID := c.FindTaxonomy(params.TaxonomyName)
+	userID := c.FindUser(params.UserName)
+	shippingTemplateID := c.FindUserShippingTemplate(userID, params.ShippingTemplateName)
+	query := fmt.Sprintf(
+		"quantity=%d&title=%s&description=%s&price=%f&taxonomy_id=%d&who_made=%s&is_supply=%t&when_made=%s&shipping_template_id=%d",
 		params.Quantity,
 		params.Title,
+		params.Description,
+		params.Price,
+		taxonomyID,
+		params.WhoMade,
+		params.IsSupply,
+		params.WhenMade,
+		shippingTemplateID,
 	)
-	c.makePostRequest(url)
+	path := fmt.Sprintf("%s/%s?%s", c.BaseURL, "listings", url.PathEscape(query))
+	c.makePostRequest(path)
 	return true
 }
