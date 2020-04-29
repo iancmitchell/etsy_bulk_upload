@@ -33,16 +33,16 @@ type Client struct {
 
 //Parameters to pass to Etsy api.
 type Parameters struct {
-	Quantity             int
-	Title                string
-	Description          string
-	Price                float64
-	TaxonomyName         string
-	WhoMade              string
-	IsSupply             bool
-	WhenMade             string
-	UserName             string
-	ShippingTemplateName string
+	Quantity             int     `csv:"Quantity"`
+	Title                string  `csv:"Title"`
+	Description          string  `csv:"Description"`
+	Price                float64 `csv:"Price"`
+	TaxonomyName         string  `csv:"Taxonomy Name"`
+	WhoMade              string  `csv:"Who Made"`
+	IsSupply             bool    `csv:"Has Supply"`
+	WhenMade             string  `csv:"When Made"`
+	Username             string  `csv:"Username"`
+	ShippingTemplateName string  `csv:"Shipping Template Name"`
 }
 
 //Taxonomy is a category from the Etsy api.
@@ -286,18 +286,18 @@ func (c Client) FindUserShippingTemplate(userID int, templateName string) int {
 func (c Client) AddListings() bool {
 	params := Parameters{
 		Quantity:             1,
-		Title:                "Testing Title 2",
+		Title:                "Example",
 		Description:          "Testing Description",
 		Price:                20.00,
 		TaxonomyName:         "Wall Hangings",
 		WhoMade:              "i_did",
 		IsSupply:             true,
 		WhenMade:             "2020_2020",
-		UserName:             "k8mkmpig",
+		Username:             "k8mkmpig",
 		ShippingTemplateName: "test profile",
 	}
 	taxonomyID := c.FindTaxonomy(params.TaxonomyName)
-	userID := c.FindUser(params.UserName)
+	userID := c.FindUser(params.Username)
 	shippingTemplateID := c.FindUserShippingTemplate(userID, params.ShippingTemplateName)
 	query := fmt.Sprintf(
 		"quantity=%d&title=%s&description=%s&price=%f&taxonomy_id=%d&who_made=%s&is_supply=%t&when_made=%s&shipping_template_id=%d",
