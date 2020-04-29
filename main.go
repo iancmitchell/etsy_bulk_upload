@@ -8,17 +8,22 @@ import (
 	"github.com/gocarina/gocsv"
 )
 
-func main() {
-	paramsFile, err := os.OpenFile("listings.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
+//getListingsDetails imports the parameters csv file.
+func getListingsDetails(filePath string) []etsy.Parameters {
+	listingsFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		log.Fatalln("Error Opening Params File: ", err)
 	}
-	defer paramsFile.Close()
-	var parameters []etsy.Parameters
-	if err = gocsv.Unmarshal(paramsFile, &parameters); err != nil {
+	defer listingsFile.Close()
+	var listings []etsy.Parameters
+	if err = gocsv.Unmarshal(listingsFile, &listings); err != nil {
 		log.Fatalln("Error Parsing Params File: ", err)
 	}
-	log.Println(parameters)
+	return listings
+}
+
+func main() {
+	parameters := getListingsDetails("listings.csv")
 	client := etsy.NewClient()
 	for _, params := range parameters {
 		client.AddListings(params)
