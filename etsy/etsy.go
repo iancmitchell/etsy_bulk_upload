@@ -283,19 +283,7 @@ func (c Client) FindUserShippingTemplate(userID int, templateName string) int {
 }
 
 //AddListings creates multiple listings on an Etsy account.
-func (c Client) AddListings() bool {
-	params := Parameters{
-		Quantity:             1,
-		Title:                "Example",
-		Description:          "Testing Description",
-		Price:                20.00,
-		TaxonomyName:         "Wall Hangings",
-		WhoMade:              "i_did",
-		IsSupply:             true,
-		WhenMade:             "2020_2020",
-		Username:             "k8mkmpig",
-		ShippingTemplateName: "test profile",
-	}
+func (c Client) AddListings(params Parameters) bool {
 	taxonomyID := c.FindTaxonomy(params.TaxonomyName)
 	userID := c.FindUser(params.Username)
 	shippingTemplateID := c.FindUserShippingTemplate(userID, params.ShippingTemplateName)
