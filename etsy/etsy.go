@@ -36,6 +36,7 @@ type Parameters struct {
 	Quantity             int     `csv:"Quantity"`
 	Title                string  `csv:"Title"`
 	Description          string  `csv:"Description"`
+	ImageName            string  `csv:"Image"`
 	Price                float64 `csv:"Price"`
 	TaxonomyName         string  `csv:"Taxonomy Name"`
 	WhoMade              string  `csv:"Who Made"`
@@ -283,12 +284,12 @@ func (c Client) FindUserShippingTemplate(userID int, templateName string) int {
 }
 
 //AddListings creates multiple listings on an Etsy account.
-func (c Client) AddListings(params Parameters) bool {
+func (c Client) AddListings(params Parameters, image []byte) bool {
 	taxonomyID := c.FindTaxonomy(params.TaxonomyName)
 	userID := c.FindUser(params.Username)
 	shippingTemplateID := c.FindUserShippingTemplate(userID, params.ShippingTemplateName)
 	query := fmt.Sprintf(
-		"quantity=%d&title=%s&description=%s&price=%f&taxonomy_id=%d&who_made=%s&is_supply=%t&when_made=%s&shipping_template_id=%d",
+		"quantity=%d&title=%s&description=%s&price=%f&taxonomy_id=%d&who_made=%s&is_supply=%t&when_made=%s&shipping_template_id=%d&image=%s",
 		params.Quantity,
 		params.Title,
 		params.Description,
@@ -298,6 +299,7 @@ func (c Client) AddListings(params Parameters) bool {
 		params.IsSupply,
 		params.WhenMade,
 		shippingTemplateID,
+		image,
 	)
 	path := fmt.Sprintf("%s/%s?%s", c.BaseURL, "listings", url.PathEscape(query))
 	c.makePostRequest(path)
